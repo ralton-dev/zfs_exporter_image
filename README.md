@@ -11,7 +11,7 @@ Upstream `pdf/zfs_exporter` is a Prometheus exporter for ZFS (pools, filesystems
 | | |
 |---|---|
 | Registry | `ghcr.io/ralton-dev/zfs_exporter` |
-| Tags | `vX.Y.Z` (upstream version), `latest` (HEAD of `main`), `sha-<short>` |
+| Tags | `vX.Y.Z[-N]` (the git tag pushed to trigger the build) |
 | Base | `ubuntu:24.04` (matches NAS host's `zfsutils-linux 2.2.x`) |
 | Entrypoint | `/usr/local/bin/zfs_exporter`, listens on `:9134` |
 
@@ -27,12 +27,33 @@ The exporter binary is statically linked Go but **shells out** to `zpool` and `z
 
 Existing third-party images (`derekgottlieb/zfs_exporter`, `quay.io/enix/zfs-exporter`) work but are single-vendor dependencies we can't rebuild. Same posture as everything else in the homelab — we own what we run.
 
-## Bumping the upstream version
+## Releases
 
-1. Update `ARG VERSION=` in [Dockerfile](Dockerfile).
-2. Update the `type=raw,value=vX.Y.Z` line in [.github/workflows/build.yml](.github/workflows/build.yml).
-3. Commit + push to `main`. GHA builds and tags the new version.
-4. In the `homelab-k8s` repo, bump the digest pin in `manifests/zfs-exporter/daemonset.yaml`.
+Builds are triggered only by **pushing a `v*` git tag** (or `workflow_dispatch`). Pushes to `main` don't build — they're a no-op for CI. PRs against `main` do a build-only smoke test (no push) so Dockerfile changes are validated before merge.
+
+### Tag scheme
+
+```
+v<UPSTREAM>[-<BUILD>]
+```
+
+`UPSTREAM` is the pdf/zfs_exporter release we're packaging. `BUILD` increments when we re-release the same upstream version (e.g., a Dockerfile fix). Examples: `v2.3.12`, `v2.3.12-2`, `v2.3.13-1`.
+
+### Bumping the upstream version
+
+```bash
+# 1. Update Dockerfile
+$EDITOR Dockerfile  # change ARG VERSION=2.3.12 to 2.3.13
+git commit -am "chore: bump upstream zfs_exporter to 2.3.13"
+git push origin main
+
+# 2. Tag and push to trigger the build
+git tag v2.3.13-1
+git push origin v2.3.13-1
+
+# 3. Wait for GHA, then update the digest pin in homelab-k8s
+#    manifests/zfs-exporter/daemonset.yaml.
+```
 
 ## License
 

@@ -3,21 +3,36 @@ name: build
 # Multi-arch (linux/amd64 + linux/arm64) build of pdf/zfs_exporter
 # packaged with ubuntu:24.04 zfsutils-linux. Pushes to GHCR.
 #
-# Tags pushed:
-#   - vX.Y.Z (the upstream pdf/zfs_exporter release we package)
-#   - latest (only on default branch)
-#   - sha-<short>
+# Triggers:
+#   push tag (v*)        → build + push, tagged with the git tag
+#   workflow_dispatch    → build + push, tagged via inputs.tag (manual release)
+#   pull_request → main  → build only, no push (CI feedback on Dockerfile changes)
+#
+# Pushes to main do NOT trigger a build. Releases are explicit, signed by tag.
+#
+# Tag scheme:
+#   v<UPSTREAM>[-<BUILD>]   e.g. v2.3.12, v2.3.12-2 (Dockerfile fix), v2.3.13-1
 #
 # Bumping upstream:
 #   1. Edit `ARG VERSION=` in Dockerfile.
-#   2. Edit `type=raw,value=vX.Y.Z` in this file.
-#   3. Commit + push; GHA does the rest.
+#   2. Commit + push to main (no CI).
+#   3. `git tag v2.3.13-1 && git push origin v2.3.13-1` triggers the build.
 #   4. Update the digest pin in homelab-k8s manifests/zfs-exporter/daemonset.yaml.
 
 on:
   push:
+    tags: ['v*']
+  pull_request:
     branches: [main]
+    paths:
+      - 'Dockerfile'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to publish (e.g. v2.3.12-3)'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -32,7 +47,9 @@ jobs:
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
-      - uses: docker/login-action@v3
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -43,22 +60,23 @@ jobs:
         with:
           images: ghcr.io/ralton-dev/zfs_exporter
           tags: |
-            type=raw,value=v2.3.12
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,prefix=sha-
+            type=ref,event=tag
+            type=raw,value=${{ inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=sha,prefix=sha-,enable=${{ github.event_name == 'pull_request' }}
 
       - id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Print image digest
+        if: github.event_name != 'pull_request'
         run: |
           echo "Image digest: ${{ steps.build.outputs.digest }}"
           echo "Pin in homelab-k8s with:"
