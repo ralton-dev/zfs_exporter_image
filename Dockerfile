@@ -11,26 +11,31 @@
 #     these binaries via os/exec, then talks to the host kernel module
 #     via /dev/zfs (mounted by the DaemonSet at runtime, privileged).
 
-ARG VERSION=2.3.12
+ARG ZFS_EXPORTER_VERSION=2.3.12
 
 FROM --platform=$BUILDPLATFORM alpine:3.20 AS download
-ARG VERSION
+ARG ZFS_EXPORTER_VERSION
 ARG TARGETARCH
 WORKDIR /tmp
 RUN apk add --no-cache curl tar
 RUN curl -fsSL \
-      "https://github.com/pdf/zfs_exporter/releases/download/v${VERSION}/zfs_exporter-${VERSION}.linux-${TARGETARCH}.tar.gz" \
+      "https://github.com/pdf/zfs_exporter/releases/download/v${ZFS_EXPORTER_VERSION}/zfs_exporter-${ZFS_EXPORTER_VERSION}.linux-${TARGETARCH}.tar.gz" \
       -o zfs.tgz \
  && tar -xzf zfs.tgz \
- && mv "zfs_exporter-${VERSION}.linux-${TARGETARCH}/zfs_exporter" /zfs_exporter \
+ && mv "zfs_exporter-${ZFS_EXPORTER_VERSION}.linux-${TARGETARCH}/zfs_exporter" /zfs_exporter \
  && chmod +x /zfs_exporter
 
 FROM ubuntu:24.04
-ARG VERSION
+ARG ZFS_EXPORTER_VERSION
+# org.opencontainers.image.version + .revision + .created come from
+# docker/metadata-action in the GHA workflow (driven by the git tag),
+# so don't hard-code them here. Only the upstream-binary version is
+# fixed at build time, captured in a custom label for traceability.
 LABEL org.opencontainers.image.source="https://github.com/ralton-dev/zfs_exporter_image"
 LABEL org.opencontainers.image.description="pdf/zfs_exporter packaged with ubuntu:24.04 zfsutils-linux"
 LABEL org.opencontainers.image.licenses="MIT"
-LABEL org.opencontainers.image.version="${VERSION}"
+LABEL upstream.version="v${ZFS_EXPORTER_VERSION}"
+LABEL upstream.source="https://github.com/pdf/zfs_exporter"
 
 RUN apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
