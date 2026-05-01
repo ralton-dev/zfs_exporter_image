@@ -1,0 +1,65 @@
+name: build
+
+# Multi-arch (linux/amd64 + linux/arm64) build of pdf/zfs_exporter
+# packaged with ubuntu:24.04 zfsutils-linux. Pushes to GHCR.
+#
+# Tags pushed:
+#   - vX.Y.Z (the upstream pdf/zfs_exporter release we package)
+#   - latest (only on default branch)
+#   - sha-<short>
+#
+# Bumping upstream:
+#   1. Edit `ARG VERSION=` in Dockerfile.
+#   2. Edit `type=raw,value=vX.Y.Z` in this file.
+#   3. Commit + push; GHA does the rest.
+#   4. Update the digest pin in homelab-k8s manifests/zfs-exporter/daemonset.yaml.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/ralton-dev/zfs_exporter
+          tags: |
+            type=raw,value=v2.3.12
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Print image digest
+        run: |
+          echo "Image digest: ${{ steps.build.outputs.digest }}"
+          echo "Pin in homelab-k8s with:"
+          echo "  image: ghcr.io/ralton-dev/zfs_exporter@${{ steps.build.outputs.digest }}"
