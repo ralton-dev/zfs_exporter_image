@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.28@sha256:bb22d9815c728170f72750f4e5b0d672e06176142e1d602c7e66c050100b7e5b
 #
 # Container build for upstream pdf/zfs_exporter.
 #
@@ -11,9 +11,9 @@
 #     these binaries via os/exec, then talks to the host kernel module
 #     via /dev/zfs (mounted by the DaemonSet at runtime, privileged).
 
-ARG ZFS_EXPORTER_VERSION=2.3.12
+ARG ZFS_EXPORTER_VERSION=2.5.1
 
-FROM --platform=$BUILDPLATFORM alpine:3.20 AS download
+FROM --platform=$BUILDPLATFORM alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a AS download
 ARG ZFS_EXPORTER_VERSION
 ARG TARGETARCH
 WORKDIR /tmp
