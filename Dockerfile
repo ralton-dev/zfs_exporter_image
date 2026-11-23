@@ -11,7 +11,7 @@
 #     these binaries via os/exec, then talks to the host kernel module
 #     via /dev/zfs (mounted by the DaemonSet at runtime, privileged).
 
-ARG ZFS_EXPORTER_VERSION=2.5.1
+ARG ZFS_EXPORTER_VERSION=2.5.2
 
 FROM --platform=$BUILDPLATFORM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS download
 ARG ZFS_EXPORTER_VERSION
