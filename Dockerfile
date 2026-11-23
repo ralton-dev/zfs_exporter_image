@@ -25,7 +25,7 @@ RUN curl -fsSL \
  && mv "zfs_exporter-${ZFS_EXPORTER_VERSION}.linux-${TARGETARCH}/zfs_exporter" /zfs_exporter \
  && chmod +x /zfs_exporter
 
-FROM ubuntu:24.04
+FROM ubuntu:24.04@sha256:9c7f200c07e3d4a03e7249d2c16bf66a51120fb876aa2242cf31451412543289
 ARG ZFS_EXPORTER_VERSION
 # org.opencontainers.image.version + .revision + .created come from
 # docker/metadata-action in the GHA workflow (driven by the git tag),
